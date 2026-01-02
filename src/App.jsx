@@ -20,6 +20,12 @@ export default function App() {
   const [filteredStories, setFilteredStories] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // Dark Mode
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+  
   // UI States
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -46,6 +52,16 @@ export default function App() {
   
   const [editingStory, setEditingStory] = useState(null);
 
+  // Apply dark mode to document
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
   // Load stories on mount
   useEffect(() => {
     loadStories();
@@ -61,6 +77,10 @@ export default function App() {
     setTotalPages(Math.ceil(filteredStories.length / ITEMS_PER_PAGE));
     setCurrentPage(1);
   }, [filteredStories]);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   const loadStories = async () => {
     try {
@@ -215,13 +235,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 animate-gradient">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 animate-gradient transition-colors duration-500">
       {/* Floating particles effect */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full animate-float"></div>
-        <div className="absolute top-40 right-20 w-32 h-32 bg-white/10 rounded-full animate-float-delayed"></div>
-        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-white/10 rounded-full animate-float"></div>
-        <div className="absolute bottom-40 right-1/3 w-16 h-16 bg-white/10 rounded-full animate-float-delayed"></div>
+        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 dark:bg-white/5 rounded-full animate-float"></div>
+        <div className="absolute top-40 right-20 w-32 h-32 bg-white/10 dark:bg-white/5 rounded-full animate-float-delayed"></div>
+        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-white/10 dark:bg-white/5 rounded-full animate-float"></div>
+        <div className="absolute bottom-40 right-1/3 w-16 h-16 bg-white/10 dark:bg-white/5 rounded-full animate-float-delayed"></div>
       </div>
 
       <style>{`
@@ -306,6 +326,8 @@ export default function App() {
           onCategoryChange={setSelectedCategory}
           filteredCount={filteredStories.length}
           onAddClick={() => setShowAddForm(!showAddForm)}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={toggleDarkMode}
         />
 
         {/* Add Story Form */}
@@ -344,9 +366,9 @@ export default function App() {
             {/* Stories Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               {getCurrentPageStories().length === 0 ? (
-                <div className="col-span-full bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-12 text-center animate-scale-in">
-                  <BookOpen className="w-20 h-20 text-gray-300 mx-auto mb-4 animate-bounce" />
-                  <p className="text-gray-500 text-lg font-medium whitespace-pre-line">
+                <div className="col-span-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg rounded-2xl shadow-2xl p-12 text-center animate-scale-in">
+                  <BookOpen className="w-20 h-20 text-gray-300 dark:text-gray-600 mx-auto mb-4 animate-bounce" />
+                  <p className="text-gray-500 dark:text-gray-400 text-lg font-medium whitespace-pre-line">
                     {searchTerm || selectedCategory !== 'ทั้งหมด'
                       ? '😔 ไม่พบเรื่องที่ตรงกับเงื่อนไข'
                       : '📚 ยังไม่มีเรื่องในคอลเลกชัน\nกดปุ่ม "เพิ่มเรื่อง" เพื่อเริ่มต้น'}
