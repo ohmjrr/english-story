@@ -1,63 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Trash2, Eye, X, AlertCircle, Search, SlidersHorizontal, ChevronLeft, ChevronRight, Tag, Edit } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy as fbOrderBy, updateDoc } from 'firebase/firestore';
+import { BookOpen } from 'lucide-react';
 
-// Firebase Configuration
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyB2cqf0cXGsHsFUSmE1wDXoG78vFV1CxhI",
-  authDomain: "vocab-5c83f.firebaseapp.com",
-  projectId: "vocab-5c83f",
-  storageBucket: "vocab-5c83f.firebasestorage.app",
-  messagingSenderId: "324294179304",
-  appId: "1:324294179304:web:1da7b6d6a314991c668c5d",
-  measurementId: "G-0XYS023X8L"
-};
+import Header from './components/Header';
+import StoryForm from './components/StoryForm';
+import StoryCard from './components/StoryCard';
+import StoryModal from './components/StoryModal';
+import Pagination from './components/Pagination';
+import Loading from './components/Loading';
+import { FIREBASE_CONFIG, ITEMS_PER_PAGE } from './constants';
 
 // Initialize Firebase
 const app = initializeApp(FIREBASE_CONFIG);
 const firestore = getFirestore(app);
 
-const ITEMS_PER_PAGE = 6;
-
-// หมวดหมู่ที่มี
-const CATEGORIES = [
-  'ทั้งหมด',
-  'Adventure',
-  'Romance',
-  'Mystery',
-  'Fantasy',
-  'Science Fiction',
-  'Horror',
-  'Comedy',
-  'Drama',
-  'Historical',
-  'Biography',
-  'Other'
-];
-
-export default function EnglishStoryApp() {
+export default function App() {
   const [stories, setStories] = useState([]);
   const [filteredStories, setFilteredStories] = useState([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [viewingStory, setViewingStory] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [firebaseError, setFirebaseError] = useState(null);
+  
+  // UI States
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [viewingStory, setViewingStory] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Filter & Sort states
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
-  const [showFilters, setShowFilters] = useState(false);
   
-  // Pagination states
+  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   
-  // Edit states
-  const [editingStory, setEditingStory] = useState(null);
-  const [showEditForm, setShowEditForm] = useState(false);
-  
+  // Form states
   const [newStory, setNewStory] = useState({
     title: '',
     content: '',
@@ -65,15 +43,20 @@ export default function EnglishStoryApp() {
     vocab: '',
     category: 'Other'
   });
+  
+  const [editingStory, setEditingStory] = useState(null);
 
+  // Load stories on mount
   useEffect(() => {
     loadStories();
   }, []);
 
+  // Apply filters when stories or filter criteria change
   useEffect(() => {
     applyFiltersAndSort();
   }, [stories, searchTerm, sortBy, selectedCategory]);
 
+  // Update pagination when filtered stories change
   useEffect(() => {
     setTotalPages(Math.ceil(filteredStories.length / ITEMS_PER_PAGE));
     setCurrentPage(1);
@@ -95,10 +78,10 @@ export default function EnglishStoryApp() {
       });
       
       setStories(loadedStories);
-      setLoading(false);
     } catch (error) {
       console.error('Error loading stories:', error);
-      setFirebaseError('ไม่สามารถโหลดเรื่องได้');
+      alert('ไม่สามารถโหลดเรื่องได้');
+    } finally {
       setLoading(false);
     }
   };
@@ -162,35 +145,6 @@ export default function EnglishStoryApp() {
     }
   };
 
-  const deleteStory = async (storyId) => {
-    if (!confirm('ต้องการลบเรื่องนี้ใช่หรือไม่?')) return;
-
-    try {
-      await deleteDoc(doc(firestore, 'stories', storyId));
-      
-      setStories(stories.filter(s => s.id !== storyId));
-      if (viewingStory && viewingStory.id === storyId) {
-        setViewingStory(null);
-      }
-    } catch (error) {
-      console.error('Error deleting story:', error);
-      alert('ไม่สามารถลบเรื่องได้');
-    }
-  };
-
-  const startEditStory = (story) => {
-    setEditingStory({
-      id: story.id,
-      title: story.title,
-      content: story.content,
-      thaiContent: story.thaiContent || '',
-      vocab: story.vocab || '',
-      category: story.category || 'Other'
-    });
-    setShowEditForm(true);
-    setViewingStory(null);
-  };
-
   const updateStory = async () => {
     if (!editingStory.title.trim() || !editingStory.content.trim()) {
       alert('กรุณากรอกชื่อเรื่องและเนื้อเรื่องภาษาอังกฤษ');
@@ -225,544 +179,208 @@ export default function EnglishStoryApp() {
     }
   };
 
+  const deleteStory = async (storyId) => {
+    if (!confirm('ต้องการลบเรื่องนี้ใช่หรือไม่?')) return;
+
+    try {
+      await deleteDoc(doc(firestore, 'stories', storyId));
+      
+      setStories(stories.filter(s => s.id !== storyId));
+      if (viewingStory && viewingStory.id === storyId) {
+        setViewingStory(null);
+      }
+    } catch (error) {
+      console.error('Error deleting story:', error);
+      alert('ไม่สามารถลบเรื่องได้');
+    }
+  };
+
+  const startEditStory = (story) => {
+    setEditingStory({
+      id: story.id,
+      title: story.title,
+      content: story.content,
+      thaiContent: story.thaiContent || '',
+      vocab: story.vocab || '',
+      category: story.category || 'Other'
+    });
+    setShowEditForm(true);
+    setViewingStory(null);
+  };
+
   const getCurrentPageStories = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const endIndex = startIndex + ITEMS_PER_PAGE;
     return filteredStories.slice(startIndex, endIndex);
   };
 
-  const goToPage = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  if (firebaseError) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">เกิดข้อผิดพลาด</h2>
-          <p className="text-gray-600 text-center mb-4">{firebaseError}</p>
-          <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700">
-            <p className="font-semibold mb-2">วิธีแก้ไข:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>สร้าง Firebase project ที่ console.firebase.google.com</li>
-              <li>เปิดใช้งาน Firestore Database</li>
-              <li>คัดลอก config มาใส่ในโค้ด</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <BookOpen className="w-8 h-8 text-indigo-600" />
-              <h1 className="text-3xl font-bold text-gray-800">English Story Collection</h1>
-            </div>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-            >
-              <Plus className="w-5 h-5" />
-              เพิ่มเรื่อง
-            </button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 animate-gradient">
+      {/* Floating particles effect */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full animate-float"></div>
+        <div className="absolute top-40 right-20 w-32 h-32 bg-white/10 rounded-full animate-float-delayed"></div>
+        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-white/10 rounded-full animate-float"></div>
+        <div className="absolute bottom-40 right-1/3 w-16 h-16 bg-white/10 rounded-full animate-float-delayed"></div>
+      </div>
 
-          {/* Search & Filter Bar */}
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="ค้นหาเรื่อง..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-            >
-              <SlidersHorizontal className="w-5 h-5" />
-              ตัวกรอง
-            </button>
-          </div>
+      <style>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-30px) rotate(-180deg); }
+        }
+        
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-gradient {
+          background-size: 200% 200%;
+          animation: gradient 15s ease infinite;
+        }
+        
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        
+        .animate-float-delayed {
+          animation: float-delayed 8s ease-in-out infinite;
+        }
+        
+        .animate-slide-in-up {
+          animation: slideInUp 0.5s ease-out;
+        }
+        
+        .animate-scale-in {
+          animation: scaleIn 0.3s ease-out;
+        }
+        
+        .hover-lift {
+          transition: all 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+      `}</style>
 
-          {/* Filter Options */}
-          {showFilters && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  เรียงตาม:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setSortBy('newest')}
-                    className={`px-4 py-2 rounded-lg transition ${
-                      sortBy === 'newest'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    ล่าสุด
-                  </button>
-                  <button
-                    onClick={() => setSortBy('oldest')}
-                    className={`px-4 py-2 rounded-lg transition ${
-                      sortBy === 'oldest'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    เก่าสุด
-                  </button>
-                  <button
-                    onClick={() => setSortBy('title')}
-                    className={`px-4 py-2 rounded-lg transition ${
-                      sortBy === 'title'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    ชื่อเรื่อง (A-Z)
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  หมวดหมู่:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-4 py-2 rounded-lg transition ${
-                        selectedCategory === cat
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Results Count */}
-          <div className="mt-4 text-sm text-gray-600">
-            พบ {filteredStories.length} เรื่อง
-            {searchTerm && ` จากคำค้นหา "${searchTerm}"`}
-            {selectedCategory !== 'ทั้งหมด' && ` ในหมวด "${selectedCategory}"`}
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto relative z-10">
+        <Header
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          showFilters={showFilters}
+          onToggleFilters={() => setShowFilters(!showFilters)}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          filteredCount={filteredStories.length}
+          onAddClick={() => setShowAddForm(!showAddForm)}
+        />
 
         {/* Add Story Form */}
         {showAddForm && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">เพิ่มเรื่องใหม่</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ชื่อเรื่อง
-                </label>
-                <input
-                  type="text"
-                  value={newStory.title}
-                  onChange={(e) => setNewStory({ ...newStory, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="The Adventure Begins..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  หมวดหมู่
-                </label>
-                <select
-                  value={newStory.category}
-                  onChange={(e) => setNewStory({ ...newStory, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  {CATEGORIES.filter(cat => cat !== 'ทั้งหมด').map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เนื้อเรื่องภาษาอังกฤษ *
-                  </label>
-                  <textarea
-                    value={newStory.content}
-                    onChange={(e) => setNewStory({ ...newStory, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent h-64"
-                    placeholder="Once upon a time..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เนื้อเรื่องภาษาไทย (ไม่บังคับ)
-                  </label>
-                  <textarea
-                    value={newStory.thaiContent}
-                    onChange={(e) => setNewStory({ ...newStory, thaiContent: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent h-64"
-                    placeholder="กาลครั้งหนึ่งนานมาแล้ว..."
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  คำศัพท์ (แยกแต่ละคำด้วยการขึ้นบรรทัดใหม่)
-                </label>
-                <textarea
-                  value={newStory.vocab}
-                  onChange={(e) => setNewStory({ ...newStory, vocab: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent h-32"
-                  placeholder="adventure - การผจญภัย&#10;courage - ความกล้าหาญ&#10;journey - การเดินทาง"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={addStory}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition"
-                >
-                  บันทึก
-                </button>
-                <button
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewStory({ title: '', content: '', thaiContent: '', vocab: '', category: 'Other' });
-                  }}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </div>
-          </div>
+          <StoryForm
+            story={newStory}
+            onChange={setNewStory}
+            onSubmit={addStory}
+            onCancel={() => {
+              setShowAddForm(false);
+              setNewStory({ title: '', content: '', thaiContent: '', vocab: '', category: 'Other' });
+            }}
+            isEditMode={false}
+          />
         )}
 
         {/* Edit Story Form */}
         {showEditForm && editingStory && (
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-amber-500">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Edit className="w-6 h-6 text-amber-600" />
-              แก้ไขเรื่อง
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ชื่อเรื่อง
-                </label>
-                <input
-                  type="text"
-                  value={editingStory.title}
-                  onChange={(e) => setEditingStory({ ...editingStory, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="The Adventure Begins..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  หมวดหมู่
-                </label>
-                <select
-                  value={editingStory.category}
-                  onChange={(e) => setEditingStory({ ...editingStory, category: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                >
-                  {CATEGORIES.filter(cat => cat !== 'ทั้งหมด').map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เนื้อเรื่องภาษาอังกฤษ *
-                  </label>
-                  <textarea
-                    value={editingStory.content}
-                    onChange={(e) => setEditingStory({ ...editingStory, content: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent h-64"
-                    placeholder="Once upon a time..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    เนื้อเรื่องภาษาไทย (ไม่บังคับ)
-                  </label>
-                  <textarea
-                    value={editingStory.thaiContent}
-                    onChange={(e) => setEditingStory({ ...editingStory, thaiContent: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent h-64"
-                    placeholder="กาลครั้งหนึ่งนานมาแล้ว..."
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  คำศัพท์ (แยกแต่ละคำด้วยการขึ้นบรรทัดใหม่)
-                </label>
-                <textarea
-                  value={editingStory.vocab}
-                  onChange={(e) => setEditingStory({ ...editingStory, vocab: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent h-32"
-                  placeholder="adventure - การผจญภัย&#10;courage - ความกล้าหาญ&#10;journey - การเดินทาง"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={updateStory}
-                  className="bg-amber-600 text-white px-6 py-2 rounded-lg hover:bg-amber-700 transition"
-                >
-                  บันทึกการแก้ไข
-                </button>
-                <button
-                  onClick={() => {
-                    setShowEditForm(false);
-                    setEditingStory(null);
-                  }}
-                  className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400 transition"
-                >
-                  ยกเลิก
-                </button>
-              </div>
-            </div>
-          </div>
+          <StoryForm
+            story={editingStory}
+            onChange={setEditingStory}
+            onSubmit={updateStory}
+            onCancel={() => {
+              setShowEditForm(false);
+              setEditingStory(null);
+            }}
+            isEditMode={true}
+          />
         )}
 
         {/* Loading State */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">กำลังโหลดเรื่อง...</p>
-          </div>
+          <Loading />
         ) : (
           <>
             {/* Stories Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               {getCurrentPageStories().length === 0 ? (
-                <div className="col-span-full bg-white rounded-lg shadow-lg p-8 text-center">
-                  <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">
+                <div className="col-span-full bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-12 text-center animate-scale-in">
+                  <BookOpen className="w-20 h-20 text-gray-300 mx-auto mb-4 animate-bounce" />
+                  <p className="text-gray-500 text-lg font-medium whitespace-pre-line">
                     {searchTerm || selectedCategory !== 'ทั้งหมด'
-                      ? `ไม่พบเรื่องที่ตรงกับเงื่อนไข`
-                      : 'ยังไม่มีเรื่องในคอลเลกชัน กดปุ่ม "เพิ่มเรื่อง" เพื่อเริ่มต้น'}
+                      ? '😔 ไม่พบเรื่องที่ตรงกับเงื่อนไข'
+                      : '📚 ยังไม่มีเรื่องในคอลเลกชัน\nกดปุ่ม "เพิ่มเรื่อง" เพื่อเริ่มต้น'}
                   </p>
                 </div>
               ) : (
-                getCurrentPageStories().map((story) => (
-                  <div key={story.id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition flex flex-col">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="text-xl font-bold text-gray-800 line-clamp-2 flex-1">{story.title}</h3>
-                      <span className="ml-2 px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full whitespace-nowrap">
-                        {story.category || 'Other'}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-3">
-                      {new Date(story.createdAt).toLocaleDateString('th-TH', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                    <p className="text-gray-700 line-clamp-3 flex-1 mb-4">{story.content}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setViewingStory(story)}
-                        className="flex-1 flex items-center justify-center gap-2 p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition"
-                      >
-                        <Eye className="w-5 h-5" />
-                        อ่าน
-                      </button>
-                      <button
-                        onClick={() => startEditStory(story)}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                        title="แก้ไขเรื่อง"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => deleteStory(story.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="ลบเรื่อง"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
+                getCurrentPageStories().map((story, index) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    index={index}
+                    onView={setViewingStory}
+                    onEdit={startEditStory}
+                    onDelete={deleteStory}
+                  />
                 ))
               )}
             </div>
 
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="bg-white rounded-lg shadow-lg p-4">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                      currentPage === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    }`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    ก่อนหน้า
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let page;
-                      if (totalPages <= 5) {
-                        page = i + 1;
-                      } else if (currentPage <= 3) {
-                        page = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        page = totalPages - 4 + i;
-                      } else {
-                        page = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => goToPage(page)}
-                          className={`w-10 h-10 rounded-lg transition ${
-                            currentPage === page
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                      currentPage === totalPages
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    }`}
-                  >
-                    ถัดไป
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-                <p className="text-center text-sm text-gray-600 mt-3">
-                  หน้า {currentPage} จาก {totalPages}
-                </p>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </>
         )}
 
         {/* Story Viewer Modal */}
-        {viewingStory && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">{viewingStory.title}</h2>
-                  <span className="inline-block mt-2 px-3 py-1 bg-indigo-100 text-indigo-700 text-sm rounded-full">
-                    {viewingStory.category || 'Other'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setViewingStory(null)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="p-6">
-                {/* Content Grid */}
-                <div className={`grid ${viewingStory.thaiContent ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'} gap-6 mb-8`}>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
-                      English Version
-                    </h3>
-                    <div className="prose max-w-none bg-blue-50 rounded-lg p-4">
-                      <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {viewingStory.content}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {viewingStory.thaiContent && (
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                        ฉบับภาษาไทย
-                      </h3>
-                      <div className="prose max-w-none bg-green-50 rounded-lg p-4">
-                        <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                          {viewingStory.thaiContent}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Vocabulary */}
-                {viewingStory.vocab && (
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">📚 คำศัพท์</h3>
-                    <div className="bg-indigo-50 rounded-lg p-4">
-                      <div className="space-y-2">
-                        {viewingStory.vocab.split('\n').filter(v => v.trim()).map((vocab, idx) => (
-                          <div key={idx} className="text-gray-700 py-1">
-                            • {vocab}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Edit Button in Modal */}
-                <div className="border-t border-gray-200 pt-6 mt-6">
-                  <button
-                    onClick={() => startEditStory(viewingStory)}
-                    className="w-full flex items-center justify-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-lg hover:bg-amber-700 transition"
-                  >
-                    <Edit className="w-5 h-5" />
-                    แก้ไขเรื่องนี้
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <StoryModal
+          story={viewingStory}
+          onClose={() => setViewingStory(null)}
+          onEdit={startEditStory}
+        />
       </div>
     </div>
   );
